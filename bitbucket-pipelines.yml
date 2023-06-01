@@ -1,0 +1,89 @@
+image: atlassian/default-image:3
+
+pipelines:
+  branches:
+    develop:
+      - step: 
+          name: Deploy to development
+          deployment: Development
+          services:
+            - docker
+          script:      
+            - export IMAGE_NAME=${BITBUCKET_REPO_SLUG}-dev
+            - export VERSION="0.1.${BITBUCKET_BUILD_NUMBER}"
+            - export IMAGE_TAG=cr.yandex/${REGISTRY_ID}/${IMAGE_NAME}:${VERSION} 
+
+          # Install necessary programs 
+            - echo "Install kubectl" && curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+            - echo "Make kubectl executable" && chmod +x ./kubectl
+            - echo "Move kubectl in /usr/local/bin folder" && mv ./kubectl /usr/local/bin/kubectl
+            - echo "Install helm" && curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && chmod 700 get_helm.sh && ./get_helm.sh
+            - echo "Install external-secrets" && helm repo add external-secrets https://charts.external-secrets.io
+            - echo "Install ingress-nginx" && helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+            - echo "Install Yandex Cloud" && curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash && alias yc=~/yandex-cloud/bin/yc
+          
+          # Set up Yandex Cloud CLI (yc), docker registry and kubectl 
+            - echo "Create key.json" && echo ${YC_AUTH_KEY_JSON} > key.json
+            - echo "Create bitbucket profile for yc" && yc config profile create bitbucket
+            - echo "Set service-account-key (key.json)" && yc config set service-account-key key.json
+            - echo "Set cloud-id" && yc config set cloud-id ${CLOUD_ID}
+            - echo "Set folder-id" && yc config set folder-id ${FOLDER_ID}
+            - echo "Set up k8s credentials" && yc managed-kubernetes cluster get-credentials --id=${K8S_ID} --external
+            - echo "Set up docker registry" && cat ./key.json | docker login --username json_key --password-stdin cr.yandex
+
+          # Build 
+            - echo "Build docker image" && DOCKER_BUILDKIT=1 docker build . --file Dockerfile --tag ${IMAGE_TAG}
+            - echo "Push docker image" && docker push ${IMAGE_TAG}
+
+          # Deploy
+            - echo "Clone site-iaas repository" && git clone git@bitbucket.org:autovillru/site-iaas.git k8s_manifests
+            - echo "Apply secret-store.yaml manifest" && kubectl apply -f ./k8s_manifests/dev/secret-store.yaml
+            - echo "Apply external-secret.yaml manifest" && envsubst \$CERTIFICATE_ID < ./k8s_manifests/dev/external-secret.yaml | kubectl apply -f -
+            - echo "Apply site-clusterip manifest" && kubectl apply -f ./k8s_manifests/dev/site-clusterip.yaml
+            - echo "Apply site-deploy.yaml manifest" && envsubst \$REGISTRY_ID,\$VERSION < ./k8s_manifests/dev/site-deploy.yaml | kubectl apply -f -
+            - echo "Apply site-ingress-nginx" && helm upgrade --install site-dev-ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --set controller.service.loadBalancerIP=$SITE_IP --namespace site-dev --set controller.ingressClassResource.name=site-dev-class-resource && helm repo update
+            - echo "Apply site-ingress.yaml manifest" && kubectl apply -f ./k8s_manifests/dev/site-ingress.yaml
+
+    main:
+      - step: 
+          name: Deploy to production
+          deployment: Production
+          services:
+            - docker
+          script:      
+            - export IMAGE_NAME=${BITBUCKET_REPO_SLUG}-dev
+            - export VERSION="0.1.${BITBUCKET_BUILD_NUMBER}"
+            - export IMAGE_TAG=cr.yandex/${REGISTRY_ID}/${IMAGE_NAME}:${VERSION} 
+
+          # Install necessary programs 
+            - echo "Install kubectl" && curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+            - echo "Make kubectl executable" && chmod +x ./kubectl
+            - echo "Move kubectl in /usr/local/bin folder" && mv ./kubectl /usr/local/bin/kubectl
+            - echo "Install helm" && curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && chmod 700 get_helm.sh && ./get_helm.sh
+            - echo "Install external-secrets" && helm repo add external-secrets https://charts.external-secrets.io
+            - echo "Install ingress-nginx" && helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+            - echo "Install Yandex Cloud" && curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash && alias yc=~/yandex-cloud/bin/yc
+          
+          # Set up Yandex Cloud CLI (yc), docker registry and kubectl 
+            - echo "Create key.json" && echo ${YC_AUTH_KEY_JSON} > key.json
+            - echo "Create bitbucket profile for yc" && yc config profile create bitbucket
+            - echo "Set service-account-key (key.json)" && yc config set service-account-key key.json
+            - echo "Set cloud-id" && yc config set cloud-id ${CLOUD_ID}
+            - echo "Set folder-id" && yc config set folder-id ${FOLDER_ID}
+            - echo "Set up k8s credentials" && yc managed-kubernetes cluster get-credentials --id=${K8S_ID} --external
+            - echo "Set up docker registry" && cat ./key.json | docker login --username json_key --password-stdin cr.yandex
+
+          # Build 
+            - echo "Build docker image" && DOCKER_BUILDKIT=1 docker build . --file Dockerfile --tag ${IMAGE_TAG}
+            - echo "Push docker image" && docker push ${IMAGE_TAG}
+
+          # Deploy
+            - echo "Clone site-iaas repository" && git clone git@bitbucket.org:autovillru/site-iaas.git k8s_manifests
+            - echo "Apply secret-store.yaml manifest" && kubectl apply -f ./k8s_manifests/prod/secret-store.yaml
+            - echo "Apply external-secret.yaml manifest" && envsubst \$CERTIFICATE_ID < ./k8s_manifests/prod/external-secret.yaml | kubectl apply -f -
+            - echo "Apply site-clusterip manifest" && kubectl apply -f ./k8s_manifests/prod/site-clusterip.yaml
+            - echo "Apply site-deploy.yaml manifest" && envsubst \$REGISTRY_ID,\$VERSION < ./k8s_manifests/prod/site-deploy.yaml | kubectl apply -f -
+            - echo "Apply site-ingress-nginx" && helm upgrade --install site-ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --set controller.service.loadBalancerIP=$SITE_IP --namespace site --set controller.ingressClassResource.name=site-class-resource && helm repo update
+            - echo "Apply site-ingress.yaml manifest" && kubectl apply -f ./k8s_manifests/prod/site-ingress.yaml
+
+    
