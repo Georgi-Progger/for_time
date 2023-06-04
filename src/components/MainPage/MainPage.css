@@ -1,0 +1,130 @@
+.main{
+    width: 100%;
+    height: auto;
+    background: #F3F2F7;
+}
+.head-announcement__container{
+    height: 48px;
+    padding-left: 60px;
+    background-color: white;
+}
+.head-announcement__list {
+    padding-left: 0;
+    display: flex;
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 12px;
+    display: flex;
+    align-items: center;
+    color: #282B50;
+}
+.head-announcement__list >li{
+    cursor: pointer;
+    list-style-type: none;
+    margin-right: 31px;
+    padding: 10px;
+    transition: border-color 0.3s;
+}
+.content >p{
+    margin: 0;
+}
+.head-announcement__list >li:hover {
+    border: 0 solid #E1F2FE;
+    border-radius: 4px;
+}
+.highlighted {
+    background-color: #E1F2FE;
+    border-radius: 4px;
+}
+
+.content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.body-announcement__container{
+    padding-top: 12px;
+    padding-left: 60px;
+}
+.ref__now-page{
+    margin-top: 12px;
+}
+.ref__now-page >p{
+    margin: 0;
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 500;
+    font-size: 12px;
+    line-height: 24px;
+    color: #000000;
+}
+
+.add-announcement__container{
+    margin-top: 40px;
+    display: flex;
+}
+.list-requirements{
+    margin-right: 51px;
+}
+.list-requirements >h2{
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 700;
+    font-size: 32px;
+    line-height: 40px;
+    color: #000000;
+    margin: 0;
+}
+.list-requirements >ul{
+    padding: 0;
+}
+.list-requirements >ul >li{
+    list-style-type: none;
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 24px;
+    color: #45517C;
+    margin-bottom:40px;
+}
+.radio {
+    display: flex;
+    align-items: center;
+}
+  
+.radio__input {
+    display: none;
+}
+.radio__button {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    border: 2px solid #000;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+  
+.radio__button::before {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    left: 6px;
+    top: 6px;
+    border-radius: 50%;
+    background: transparent;
+}
+  
+.radio__input:checked + .radio__button::before {
+    background: #282B50;
+}
+.radio__input.completed + .radio__button {
+    border: 2px solid #4FC10E;;
+}
+.radio__input.completed + .radio__button::before {
+    background: #4FC10E;;
+}
+  
